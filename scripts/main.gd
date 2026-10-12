@@ -26,6 +26,10 @@ var prompt_label: Label
 var toast_label: Label
 var stamina_bar: ProgressBar
 var compass: CompassScript
+var handheld_compass: CompassScript
+var map_compass: CompassScript
+var map_compass_toggle: CheckBox
+var handheld_enabled := false
 var paper_map: MapScript
 var control_list: VBoxContainer
 var map_overlay: Control
@@ -63,6 +67,7 @@ func _register_inputs() -> void:
 		"move_right": [KEY_D, KEY_RIGHT],
 		"sprint": [KEY_SHIFT],
 		"map": [KEY_M, KEY_TAB],
+		"handheld_compass": [KEY_C],
 		"interact": [KEY_E],
 		"pause": [KEY_ESCAPE],
 	}
@@ -89,6 +94,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif state == State.MAP or state == State.PAUSED:
 			_set_state(State.PLAYING)
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("handheld_compass") and (state == State.PLAYING or state == State.MAP):
+		set_handheld_compass_enabled(not handheld_enabled)
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") and state == State.PLAYING:
 		try_interact()
 		get_viewport().set_input_as_handled()
@@ -97,6 +105,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	compass.heading = player.heading_degrees()
 	compass.queue_redraw()
+	map_compass.heading_degrees = player.heading_degrees()
+	handheld_compass.heading_degrees = player.heading_degrees()
+	handheld_compass.rose_rotation_degrees = map_compass.rose_rotation_degrees
+	map_compass.queue_redraw()
+	handheld_compass.queue_redraw()
 	stamina_bar.value = player.stamina / PlayerScript.MAX_STAMINA * 100
 	if state == State.PLAYING:
 		elapsed += delta
@@ -127,6 +140,8 @@ func _set_state(next: State) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if player.active else Input.MOUSE_MODE_VISIBLE
 	menu_overlay.visible = state == State.MENU
 	map_overlay.visible = state == State.MAP
+	map_compass.visible = state == State.MAP and handheld_enabled
+	handheld_compass.visible = state == State.PLAYING and handheld_enabled
 	pause_overlay.visible = state == State.PAUSED
 	win_overlay.visible = state == State.WON
 	hud.visible = state != State.MENU and state != State.WON
@@ -173,6 +188,19 @@ func open_map() -> void:
 		clue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		entry.add_child(clue_label)
 	_set_state(State.MAP)
+	map_compass_toggle.button_pressed = handheld_enabled
+
+
+func set_handheld_compass_enabled(enabled: bool) -> void:
+	handheld_enabled = enabled
+	if is_instance_valid(toast_label):
+		toast_label.position.y = -290 if enabled else -185
+	if is_instance_valid(map_compass_toggle):
+		map_compass_toggle.button_pressed = enabled
+	if is_instance_valid(map_compass):
+		map_compass.visible = enabled and state == State.MAP
+	if is_instance_valid(handheld_compass):
+		handheld_compass.visible = enabled and state == State.PLAYING
 
 
 func nearby_control() -> int:
@@ -301,11 +329,19 @@ func _build_hud() -> void:
 	objective_label = label("", 13, MUTED)
 	column.add_child(objective_label)
 	compass = CompassScript.new()
+	compass.mode = CompassScript.Mode.STRIP
 	compass.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	compass.position = Vector2(-156, 24)
 	compass.size = Vector2(312, 66)
 	hud.add_child(compass)
-	var controls := label("M / TAB   Map     |     SHIFT   Run     |     ESC   Pause", 13, CREAM)
+	handheld_compass = CompassScript.new()
+	handheld_compass.mode = CompassScript.Mode.HANDHELD
+	handheld_compass.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	handheld_compass.position = Vector2(-96, -202)
+	handheld_compass.size = Vector2(192, 192)
+	handheld_compass.visible = false
+	hud.add_child(handheld_compass)
+	var controls := label("M / TAB   Map     |     C   Compass     |     SHIFT   Run     |     ESC   Pause", 13, CREAM)
 	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	controls.position = Vector2(24, -36)
 	controls.add_theme_stylebox_override("normal", panel_style(Color(0.035, 0.075, 0.065, 0.86), 6, 6))
@@ -380,6 +416,12 @@ func _build_map(root: Control) -> void:
 	paper_map = MapScript.new()
 	paper_map.custom_minimum_size = Vector2(650, 630)
 	row.add_child(paper_map)
+	map_compass = CompassScript.new()
+	map_compass.mode = CompassScript.Mode.MAP
+	map_compass.position = Vector2(40, 220)
+	map_compass.size = Vector2(210, 210)
+	map_compass.visible = false
+	paper_map.add_child(map_compass)
 	var column := VBoxContainer.new()
 	column.custom_minimum_size = Vector2(300, 0)
 	column.add_theme_constant_override("separation", 14)
@@ -389,6 +431,14 @@ func _build_map(root: Control) -> void:
 	var advice := label("Orient the map with north on your compass. Match trails, water, and landmarks to what you see.", 14, MUTED)
 	advice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(advice)
+	map_compass_toggle = CheckBox.new()
+	map_compass_toggle.text = "Handheld compass  [ C ]"
+	map_compass_toggle.button_pressed = handheld_enabled
+	map_compass_toggle.toggled.connect(set_handheld_compass_enabled)
+	column.add_child(map_compass_toggle)
+	var compass_help := label("The clear baseplate has a ruler and direction-of-travel arrow. Drag to move; Shift-drag or use the wheel to turn it. Right-drag the dial so its orienting arrow points north.", 12, MUTED)
+	compass_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(compass_help)
 	control_list = VBoxContainer.new()
 	control_list.add_theme_constant_override("separation", 16)
 	column.add_child(control_list)

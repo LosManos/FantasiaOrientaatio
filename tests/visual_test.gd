@@ -39,8 +39,17 @@ func _run() -> void:
 	game.player.active = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await capture("02-forest")
+	game.map_compass.rose_rotation_degrees = 325
+	game.set_handheld_compass_enabled(true)
+	await capture("02b-handheld-compass")
+	game.set_handheld_compass_enabled(false)
 	game.open_map()
 	await capture("03-map")
+	game.set_handheld_compass_enabled(true)
+	game.map_compass.case_rotation_degrees = 35
+	game.map_compass.rose_rotation_degrees = 325
+	await capture("03b-map-compass")
+	game.set_handheld_compass_enabled(false)
 	game._set_state(game.State.PLAYING)
 	game.player.active = false
 	game.toast_time = 0
@@ -70,5 +79,5 @@ func _run() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	game.queue_free()
 	await process_frame
-	print("Moonwood: eight visual captures saved to " + output_directory)
+	print("Moonwood: ten visual captures saved to " + output_directory)
 	quit()
