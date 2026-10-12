@@ -5,8 +5,10 @@ forest, navigate by a paper map and compass, and gather five fallen stars.
 Bring them back to the lantern at base camp to finish the adventure.
 
 There are no enemies, time limits, live position markers, or quest arrows.
-The challenge is matching your surroundings to the map. You can follow the
-trails or take shortcuts through the trees. Giant mushrooms, an ancient tree,
+The challenge is matching your surroundings to the map. Paths are off by default;
+enable **Forest paths** on the title screen before starting for an easier route.
+The option adds trails to both the forest and paper map. With paths off, trees
+also fill the former trail corridors. Giant mushrooms, an ancient tree,
 standing stones, a ruined tower, and a forgotten arch make the controls easy
 to recognize. Fireflies, floating crystals, and gentle chimes add some magic.
 

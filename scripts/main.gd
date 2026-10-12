@@ -35,6 +35,7 @@ var win_overlay: Control
 var win_summary: Label
 var audio: AudioStreamPlayer
 var sound_enabled := true
+var paths_enabled := false
 
 
 func _ready() -> void:
@@ -133,6 +134,14 @@ func _set_state(next: State) -> void:
 
 
 func start_game() -> void:
+	if world.paths_enabled != paths_enabled:
+		remove_child(world)
+		world.queue_free()
+		world = WorldScript.new()
+		world.name = "Forest"
+		world.paths_enabled = paths_enabled
+		add_child(world)
+	paper_map.paths_enabled = paths_enabled
 	collected.fill(false)
 	for star in world.stars:
 		star.show()
@@ -349,6 +358,11 @@ func _build_menu(root: Control) -> void:
 	column.add_child(label("WASD / ARROWS   Walk       MOUSE   Look\nM / TAB   Paper map       SHIFT   Sprint\nE   Gather / restore       ESC   Pause", 15, MUTED))
 	column.add_child(spacer(8))
 	column.add_child(label("No enemies. No time limit. Just you, the map, and a little magic.", 13, MUTED))
+	var paths_option := CheckBox.new()
+	paths_option.text = "Forest paths"
+	paths_option.button_pressed = paths_enabled
+	paths_option.toggled.connect(func(enabled: bool) -> void: paths_enabled = enabled)
+	column.add_child(paths_option)
 	column.add_child(button("Enter the forest", start_game))
 
 

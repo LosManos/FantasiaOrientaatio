@@ -7,6 +7,7 @@ const PURPLE := Color("#795d8a")
 const CONTOUR_INK := Color("#9b613b")
 
 var collected: Array[bool] = [false, false, false, false, false]
+var paths_enabled := false
 var map_rect := Rect2()
 var font: Font
 var contours: Array[Dictionary] = []
@@ -57,12 +58,13 @@ func _draw() -> void:
 			points.append(map_point(point))
 		var is_index: bool = contour.elevation % int(WorldData.INDEX_INTERVAL) == 0
 		draw_multiline(points, CONTOUR_INK, 1.8 if is_index else 0.9, true)
-	for path in WorldData.PATHS:
-		var points := PackedVector2Array()
-		for point in path:
-			points.append(map_point(point))
-		draw_polyline(points, Color("#c6ac79"), 6, true)
-		draw_polyline(points, Color("#957c56"), 1.5, true)
+	if paths_enabled:
+		for path in WorldData.PATHS:
+			var points := PackedVector2Array()
+			for point in path:
+				points.append(map_point(point))
+			draw_polyline(points, Color("#c6ac79"), 6, true)
+			draw_polyline(points, Color("#957c56"), 1.5, true)
 	var lake := map_point(WorldData.LAKE)
 	draw_circle(lake, WorldData.LAKE_RADIUS / 160 * side, Color("#86b9bd"))
 	draw_arc(lake, WorldData.LAKE_RADIUS / 160 * side, 0, TAU, 40, Color("#527f86"), 1.5, true)
