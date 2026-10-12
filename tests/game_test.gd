@@ -32,7 +32,8 @@ func _run() -> void:
 	check(not game.world.is_clear(Vector2(0, 40)), "disabled paths do not reserve empty forest corridors")
 	check(game.world.is_clear(WorldData.CAMP), "path-free mode preserves camp clearing")
 	check(game.collected.count(true) == 0, "nothing collected initially")
-	check(InputMap.has_action("map") and InputMap.has_action("interact"), "inputs registered")
+	check(InputMap.has_action("map") and InputMap.has_action("interact") and InputMap.has_action("handheld_compass"), "inputs registered")
+	check(not game.handheld_enabled and not game.handheld_compass.visible, "handheld compass is optional and starts hidden")
 	check(game.world.get_node("Terrain").get_child_count() > 0, "terrain has mesh collision")
 	check(WorldData.terrain_height(Vector2(-42, -44)) > 10.0, "tower sits on a mapped hill")
 	check(is_zero_approx(WorldData.terrain_height(WorldData.CAMP)), "camp stays level")
@@ -52,10 +53,15 @@ func _run() -> void:
 	check(game.world.is_clear(Vector2(0, 40)), "enabled paths reserve walkable corridors")
 	await physics_frame
 	check(game.state == game.State.PLAYING and game.player.active, "starting enables play")
+	game.set_handheld_compass_enabled(true)
+	check(game.handheld_compass.visible, "enabling handheld compass shows it in the arena")
 	check(game.at_camp(), "spawn is at mapped camp")
 	check(is_zero_approx(game.player.heading_degrees()), "starts facing north")
 	game.player.rotation.y = -PI / 2
 	check(is_equal_approx(game.player.heading_degrees(), 90), "clockwise turn points east")
+	await process_frame
+	await process_frame
+	check(is_equal_approx(game.handheld_compass.heading_degrees, 90), "handheld needle receives player heading")
 	game.player.rotation.y = PI / 2
 	check(is_equal_approx(game.player.heading_degrees(), 270), "counterclockwise turn points west")
 	game.player.rotation.y = 0
@@ -66,6 +72,30 @@ func _run() -> void:
 
 	game.open_map()
 	check(game.state == game.State.MAP and not game.player.active, "map suspends movement")
+	check(game.map_compass.visible and not game.handheld_compass.visible, "enabled compass moves to the map view")
+	var wheel_turn := InputEventMouseButton.new()
+	wheel_turn.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel_turn.pressed = true
+	game.map_compass._gui_input(wheel_turn)
+	check(is_equal_approx(game.map_compass.case_rotation_degrees, 5), "mouse wheel rotates the whole map baseplate")
+	game.map_compass.case_rotation_degrees = 35
+	game.map_compass.rose_rotation_degrees = 325
+	check(is_equal_approx(game.map_compass.case_rotation_degrees, 35) and is_equal_approx(game.map_compass.rose_rotation_degrees, 325), "map compass stores separate baseplate and rose rotations")
+	game.map_compass.case_rotation_degrees = 0
+	var rotate_press := InputEventMouseButton.new()
+	rotate_press.button_index = MOUSE_BUTTON_LEFT
+	rotate_press.pressed = true
+	rotate_press.shift_pressed = true
+	rotate_press.position = game.map_compass.size / 2 + Vector2(30, 0)
+	game.map_compass._gui_input(rotate_press)
+	var rotate_motion := InputEventMouseMotion.new()
+	rotate_motion.position = game.map_compass.size / 2 + Vector2(0, 30)
+	game.map_compass._gui_input(rotate_motion)
+	check(is_equal_approx(game.map_compass.case_rotation_degrees, 90), "shift-drag rotates the whole map compass")
+	var rotate_release := InputEventMouseButton.new()
+	rotate_release.button_index = MOUSE_BUTTON_LEFT
+	game.map_compass._gui_input(rotate_release)
+	game.map_compass.case_rotation_degrees = 0
 	check(game.paper_map.collected.size() == 5, "map has five control statuses")
 	check(game.control_list.get_child_count() == 5, "map lists five control clues")
 	var previous_elapsed: float = game.elapsed
@@ -76,6 +106,9 @@ func _run() -> void:
 	game.try_interact()
 	check(game.collected.count(true) == 0, "map cannot gather stars")
 	game._set_state(game.State.PLAYING)
+	await process_frame
+	await process_frame
+	check(game.handheld_compass.visible and is_equal_approx(game.handheld_compass.rose_rotation_degrees, 325), "map ring orientation carries into the handheld forest compass")
 
 	for index in range(game.world.stars.size()):
 		var star: Node3D = game.world.stars[index]

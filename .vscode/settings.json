@@ -1,5 +1,6 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "/Applications/Godot.app/Contents/MacOS/Godot": true
+        "/Applications/Godot.app/Contents/MacOS/Godot": true,
+        "mkdir": true
     }
 }

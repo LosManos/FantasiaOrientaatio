@@ -30,6 +30,7 @@ See [LGPLv3+NoEvil](licence.md)
 | Mouse | Look around |
 | Shift | Sprint; breath recovers when not sprinting |
 | M / Tab | Open or fold the map |
+| C | Toggle the optional handheld compass while exploring or reading the map |
 | E | Gather a nearby star / restore the camp lantern |
 | Escape | Pause / close the map / resume |
 
@@ -40,6 +41,13 @@ The compass shows your viewing direction; north is always at the top of the
 paper map. Each grid square represents 20 metres. The lake is too deep to
 cross, so walk around it. All five stars can be collected in any order.
 Collected controls are checked off on your map.
+
+Enable the optional handheld compass with **C** or from the map. On the map,
+drag the compass to move it; **Shift-drag** or use the mouse wheel to rotate the
+whole baseplate. Right-drag the dial until its orienting arrow points to the
+north needle. This ring setting carries into the forest. Turn yourself until
+the magnetic needle meets the orienting arrow, then walk in the direction of
+the travel arrow.
 
 Brown contour lines show the same hills, ridges, and lake basin that you walk
 over in the forest. Thin lines mark every 2 metres of elevation; heavier,
@@ -58,7 +66,7 @@ The pause menu includes a chime toggle and a quit button.
 - `scripts/player.gd`: first-person movement, collision, compass heading, and sprint.
 - `scripts/world.gd`: deterministic procedural forest, landmarks, trails, and stars.
 - `scripts/forest_map.gd`: map drawn from the same coordinates as the 3D world.
-- `scripts/compass.gd`: compass strip.
+- `scripts/compass.gd`: heading strip and optional map/handheld compass.
 - `tests/game_test.gd`: automated gameplay smoke tests.
 - `tests/visual_test.gd`: rendered screenshots of the menus, map, and landmarks.
 
