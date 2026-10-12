@@ -4,15 +4,21 @@ const WorldData = preload("res://scripts/world.gd")
 const INK := Color("#394d46")
 const PAPER := Color("#eddfba")
 const PURPLE := Color("#795d8a")
+const CONTOUR_INK := Color("#9b613b")
 
 var collected: Array[bool] = [false, false, false, false, false]
 var map_rect := Rect2()
 var font: Font
+var contours: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	font = ThemeDB.fallback_font
+	for elevation in range(2, 32, int(WorldData.CONTOUR_INTERVAL)):
+		var segments := WorldData.contour_segments(float(elevation))
+		if not segments.is_empty():
+			contours.append({"elevation": elevation, "segments": segments})
 	resized.connect(queue_redraw)
 
 
@@ -45,11 +51,12 @@ func _draw() -> void:
 		var p := map_point(point)
 		var tree_size := rng.randf_range(2.5, 4.5)
 		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -tree_size), p + Vector2(-tree_size * 0.7, tree_size), p + Vector2(tree_size * 0.7, tree_size)]), Color(0.28, 0.43, 0.32, 0.35))
-	# Decorative contours correspond to the impassable ridges outside the forest.
-	for corner in [Vector2(-78, -77), Vector2(78, -77)]:
-		for contour in range(3):
-			var p := map_point(corner)
-			draw_arc(p, (contour + 1) * side * 0.04, 0.15 if corner.x < 0 else 1.7, 1.4 if corner.x < 0 else 3.0, 20, Color("#b8b58b"), 1, true)
+	for contour in contours:
+		var points := PackedVector2Array()
+		for point in contour.segments:
+			points.append(map_point(point))
+		var is_index: bool = contour.elevation % int(WorldData.INDEX_INTERVAL) == 0
+		draw_multiline(points, CONTOUR_INK, 1.8 if is_index else 0.9, true)
 	for path in WorldData.PATHS:
 		var points := PackedVector2Array()
 		for point in path:
@@ -80,6 +87,13 @@ func _draw() -> void:
 			label_offset = Vector2(-92, -22)
 		var short_names := ["STONES", "WATCHTOWER", "ELDER TREE", "MUSHROOMS", "OLD ARCH"]
 		_text(point + label_offset, short_names[index], 10, INK)
+	for contour in contours:
+		if contour.elevation % int(WorldData.INDEX_INTERVAL) != 0:
+			continue
+		var segments: PackedVector2Array = contour.segments
+		var label_point := map_point(segments[segments.size() / 2])
+		draw_rect(Rect2(label_point - Vector2(2, 11), Vector2(30, 14)), PAPER)
+		_text(label_point, "%d m" % contour.elevation, 10, CONTOUR_INK)
 	var north := map_rect.position + Vector2(side - 24, 32)
 	draw_line(north + Vector2(0, 16), north + Vector2(0, -12), INK, 2, true)
 	draw_colored_polygon(PackedVector2Array([north + Vector2(0, -18), north + Vector2(-5, -7), north + Vector2(5, -7)]), INK)
@@ -91,7 +105,8 @@ func _draw() -> void:
 		draw_line(scale_start + Vector2(x, -4), scale_start + Vector2(x, 4), INK, 1)
 	_text(scale_start + Vector2(0, -9), "20 metres", 10, INK)
 	draw_rect(map_rect, Color("#9e9877"), false, 1)
-	_text(Vector2(30, size.y - 30), "NORTH IS UP  /  20 m GRID  /  NO LIVE POSITION MARKER", 11, INK)
+	_text(Vector2(30, size.y - 44), "CONTOURS 2 m / INDEX 10 m", 11, CONTOUR_INK)
+	_text(Vector2(30, size.y - 26), "NORTH IS UP  /  20 m GRID  /  NO LIVE POSITION MARKER", 11, INK)
 
 
 func _text(point: Vector2, text: String, font_size: int, color: Color) -> void:

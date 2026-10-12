@@ -1,5 +1,7 @@
 extends SceneTree
 
+const WorldData = preload("res://scripts/world.gd")
+
 var output_directory := ""
 var game: Node3D
 
@@ -50,12 +52,23 @@ func _run() -> void:
 		{"name": "06-mushrooms", "from": Vector3(28, 0.1, 45), "to": Vector3(40, 2.5, 39)},
 	]
 	for viewpoint in viewpoints:
-		game.player.position = viewpoint.from
-		game.player.look_at(Vector3(viewpoint.to.x, viewpoint.from.y, viewpoint.to.z))
-		game.player.camera.look_at(viewpoint.to)
+		var from: Vector3 = viewpoint.from
+		var target: Vector3 = viewpoint.to
+		from.y += WorldData.terrain_height(Vector2(from.x, from.z))
+		target.y += WorldData.terrain_height(Vector2(target.x, target.z))
+		game.player.position = from
+		game.player.look_at(Vector3(target.x, from.y, target.z))
+		game.player.camera.look_at(target)
 		await capture(viewpoint.name)
+	game.player.position = WorldData.terrain_point(Vector2(-28, -47.3), 0.1)
+	game.player.look_at(WorldData.terrain_point(Vector2(-42, -44), 0.1))
+	game.player.camera.look_at(WorldData.terrain_point(Vector2(-42, -44), 2.0))
+	await capture("07-hillside")
+	root.size = Vector2i(1100, 720)
+	game.open_map()
+	await capture("08-map-compact")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	game.queue_free()
 	await process_frame
-	print("Moonwood: six visual captures saved to " + output_directory)
+	print("Moonwood: eight visual captures saved to " + output_directory)
 	quit()
