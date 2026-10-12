@@ -4,6 +4,10 @@ const SIZE := 160.0
 const CAMP := Vector2(0, 61)
 const LAKE := Vector2(44, 3)
 const LAKE_RADIUS := 14.0
+const TERRAIN_STEP := 2.0
+const TERRAIN_EXTENT := 88.0
+const CONTOUR_INTERVAL := 2.0
+const INDEX_INTERVAL := 10.0
 const CONTROLS := [
 	{"name": "Whispering Stones", "position": Vector2(-43, -1), "clue": "A circle of stones listens to the western wind."},
 	{"name": "The Broken Watchtower", "position": Vector2(-42, -44), "clue": "Follow the northwestern trail to the old tower."},
@@ -32,6 +36,68 @@ var age := 0.0
 var ground_material: StandardMaterial3D
 var bark_material: StandardMaterial3D
 var rock_material: StandardMaterial3D
+
+
+static func _land_height(point: Vector2) -> float:
+	var height := 1.0
+	for hill in [Vector4(-46, -42, 17, 25), Vector4(35, -48, 13, 24), Vector4(-42, 29, 10, 21), Vector4(39, 43, 8, 22), Vector4(-7, -18, 6, 19)]:
+		var distance_squared := point.distance_squared_to(Vector2(hill.x, hill.y))
+		height += hill.z * exp(-distance_squared / (2.0 * hill.w * hill.w))
+	height += 3.0 * exp(-pow((point.x + point.y * 0.3 + 12.0) / 15.0, 2.0))
+	return height
+
+
+static func _vertex_height(point: Vector2) -> float:
+	var height := _land_height(point)
+	for control in CONTROLS:
+		var center: Vector2 = control.position
+		height = lerpf(_land_height(center), height, smoothstep(7.0, 13.0, point.distance_to(center)))
+	height *= smoothstep(12.0, 26.0, point.distance_to(CAMP))
+	height *= smoothstep(LAKE_RADIUS + 3.0, LAKE_RADIUS + 15.0, point.distance_to(LAKE))
+	return height
+
+
+static func terrain_height(point: Vector2) -> float:
+	var origin := (point / TERRAIN_STEP).floor() * TERRAIN_STEP
+	var fraction := (point - origin) / TERRAIN_STEP
+	var southwest := _vertex_height(origin)
+	var northeast := _vertex_height(origin + Vector2.ONE * TERRAIN_STEP)
+	if fraction.x >= fraction.y:
+		var southeast := _vertex_height(origin + Vector2(TERRAIN_STEP, 0))
+		return southwest * (1.0 - fraction.x) + southeast * (fraction.x - fraction.y) + northeast * fraction.y
+	var northwest := _vertex_height(origin + Vector2(0, TERRAIN_STEP))
+	return southwest * (1.0 - fraction.y) + northwest * (fraction.y - fraction.x) + northeast * fraction.x
+
+
+static func terrain_point(point: Vector2, offset := 0.0) -> Vector3:
+	return Vector3(point.x, terrain_height(point) + offset, point.y)
+
+
+static func terrain_normal(point: Vector2) -> Vector3:
+	var east := _vertex_height(point + Vector2.RIGHT) - _vertex_height(point - Vector2.RIGHT)
+	var south := _vertex_height(point + Vector2.DOWN) - _vertex_height(point - Vector2.DOWN)
+	return Vector3(-east, 2.0, -south).normalized()
+
+
+static func contour_segments(elevation: float) -> PackedVector2Array:
+	var segments := PackedVector2Array()
+	var cells := int(SIZE / TERRAIN_STEP)
+	for row in range(cells):
+		for column in range(cells):
+			var origin := Vector2(column, row) * TERRAIN_STEP - Vector2.ONE * SIZE * 0.5
+			var corners := [origin, origin + Vector2(TERRAIN_STEP, 0), origin + Vector2.ONE * TERRAIN_STEP, origin + Vector2(0, TERRAIN_STEP)]
+			var heights := [_vertex_height(corners[0]), _vertex_height(corners[1]), _vertex_height(corners[2]), _vertex_height(corners[3])]
+			for triangle in [[0, 1, 2], [0, 2, 3]]:
+				var intersections := PackedVector2Array()
+				for edge in range(3):
+					var first: int = triangle[edge]
+					var second: int = triangle[(edge + 1) % 3]
+					if (heights[first] < elevation) != (heights[second] < elevation):
+						var fraction: float = (elevation - heights[first]) / (heights[second] - heights[first])
+						intersections.append(corners[first].lerp(corners[second], fraction))
+				if intersections.size() == 2 and intersections[0].distance_squared_to(intersections[1]) > 0.000001:
+					segments.append_array(intersections)
+	return segments
 
 
 func _ready() -> void:
@@ -91,7 +157,22 @@ func _make_environment() -> void:
 
 
 func _make_ground() -> void:
-	box(Vector3(0, -0.3, 0), Vector3(176, 0.6, 176), ground_material, true)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cells := int(TERRAIN_EXTENT * 2.0 / TERRAIN_STEP)
+	for row in range(cells):
+		for column in range(cells):
+			var origin := Vector2(column, row) * TERRAIN_STEP - Vector2.ONE * TERRAIN_EXTENT
+			var corners := [origin, origin + Vector2(TERRAIN_STEP, 0), origin + Vector2.ONE * TERRAIN_STEP, origin + Vector2(0, TERRAIN_STEP)]
+			for corner in [0, 1, 2, 0, 2, 3]:
+				surface.set_normal(terrain_normal(corners[corner]))
+				surface.add_vertex(terrain_point(corners[corner]))
+	var ground := MeshInstance3D.new()
+	ground.name = "Terrain"
+	ground.mesh = surface.commit()
+	ground.material_override = ground_material
+	add_child(ground)
+	ground.create_trimesh_collision()
 	var shore := material(Color("#9d9771"))
 	var water := material(Color("#4d9eaa"))
 	water.metallic = 0.3
@@ -124,14 +205,26 @@ func _make_ground() -> void:
 
 func _make_paths() -> void:
 	var path_material := material(Color("#8d8560"))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for path in PATHS:
 		for index in range(path.size() - 1):
 			var start: Vector2 = path[index]
 			var end: Vector2 = path[index + 1]
-			var midpoint := (start + end) * 0.5
-			var strip := box(Vector3(midpoint.x, 0.015, midpoint.y), Vector3(3.3, 0.03, start.distance_to(end) + 1.5), path_material)
-			strip.rotation.y = atan2(end.x - start.x, end.y - start.y)
+			var perpendicular := (end - start).normalized().orthogonal() * 1.65
+			var divisions := ceili(start.distance_to(end) / 0.75)
+			for division in range(divisions):
+				var first := start.lerp(end, float(division) / divisions)
+				var second := start.lerp(end, float(division + 1) / divisions)
+				var corners := [first - perpendicular, first + perpendicular, second + perpendicular, second - perpendicular]
+				for corner in [0, 1, 2, 0, 2, 3]:
+					surface.set_normal(terrain_normal(corners[corner]))
+					surface.add_vertex(terrain_point(corners[corner], 0.045))
 			cylinder(Vector3(start.x, 0.02, start.y), 1.7, 0.04, path_material, 12)
+	var trails := MeshInstance3D.new()
+	trails.mesh = surface.commit()
+	trails.material_override = path_material
+	add_child(trails)
 	cylinder(Vector3(CAMP.x, 0.03, CAMP.y), 7.0, 0.06, path_material, 24)
 	for control in CONTROLS:
 		var point: Vector2 = control.position
@@ -180,12 +273,12 @@ func _make_forest() -> void:
 		tree_points.append(point)
 		var tree_scale := rng.randf_range(0.8, 1.55)
 		var basis := Basis.IDENTITY.scaled(Vector3.ONE * tree_scale)
-		trunks.append(Transform3D(basis, Vector3(point.x, 2 * tree_scale, point.y)))
+		trunks.append(Transform3D(basis, terrain_point(point, 2 * tree_scale)))
 		for tier in range(3):
 			var crown_scale := tree_scale * (1.0 - tier * 0.2)
-			crowns.append(Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * crown_scale), Vector3(point.x, (4.4 + tier * 1.65) * tree_scale, point.y)))
+			crowns.append(Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * crown_scale), terrain_point(point, (4.4 + tier * 1.65) * tree_scale)))
 		var body := StaticBody3D.new()
-		body.position = Vector3(point.x, 2 * tree_scale, point.y)
+		body.position = terrain_point(point, 2 * tree_scale)
 		add_child(body)
 		var collision := CollisionShape3D.new()
 		var shape := CylinderShape3D.new()
@@ -206,7 +299,7 @@ func _make_forest() -> void:
 	for index in range(1800):
 		var point := Vector2(rng.randf_range(-79, 79), rng.randf_range(-79, 79))
 		if not is_clear(point, -1.4):
-			grass.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(point.x, 0.3, point.y)))
+			grass.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU), terrain_point(point, 0.3)))
 	multimesh(grass_mesh, material(Color("#527354")), grass)
 
 
@@ -216,7 +309,9 @@ func _make_landmarks() -> void:
 		var angle := index * TAU / 7.0
 		var pillar := box(Vector3(stone.x + sin(angle) * 4, 1.5, stone.y + cos(angle) * 4), Vector3(1.2, 3, 0.9), rock_material, true)
 		pillar.rotation.z = rng.randf_range(-0.16, 0.16)
-		var rune := box(pillar.position + Vector3(0, 0.3, -0.46), Vector3(0.14, 0.8, 0.04), material(Color("#87ebd0"), Color("#4ea995")))
+		var rune_point := pillar.position + Vector3(0, 0.3, -0.46)
+		rune_point.y -= terrain_height(Vector2(rune_point.x, rune_point.z))
+		var rune := box(rune_point, Vector3(0.14, 0.8, 0.04), material(Color("#87ebd0"), Color("#4ea995")))
 		rune.rotation.z = 0.3
 	var tower := Vector2(-42, -44)
 	for offset in [Vector2(-2, -2), Vector2(2, -2), Vector2(-2, 2)]:
@@ -262,7 +357,7 @@ func _make_landmarks() -> void:
 
 func signpost(point: Vector3, text: String, angle: float) -> void:
 	var root := Node3D.new()
-	root.position = point
+	root.position = point + Vector3.UP * terrain_height(Vector2(point.x, point.z))
 	root.rotation.y = angle
 	add_child(root)
 	cylinder(point + Vector3(0, 0.9, 0), 0.09, 1.8, bark_material, 6)
@@ -289,7 +384,7 @@ func _make_stars() -> void:
 		# Offset the tree's control to keep the star outside its solid trunk.
 		var offset := Vector3(0, 0, 3) if index == 2 else Vector3.ZERO
 		var root := Node3D.new()
-		root.position = Vector3(point.x, 1.5, point.y) + offset
+		root.position = terrain_point(point + Vector2(offset.x, offset.z), 1.5)
 		add_child(root)
 		var crystal := SphereMesh.new()
 		crystal.radius = 0.45
@@ -326,6 +421,7 @@ func _make_fireflies() -> void:
 	var transforms: Array[Transform3D] = []
 	for index in range(90):
 		var origin := Vector3(rng.randf_range(-65, 65), rng.randf_range(0.9, 3.4), rng.randf_range(-65, 65))
+		origin.y += terrain_height(Vector2(origin.x, origin.z))
 		firefly_origins.append(origin)
 		transforms.append(Transform3D(Basis.IDENTITY, origin))
 	var mesh := SphereMesh.new()
@@ -340,7 +436,7 @@ func _process(delta: float) -> void:
 	age += delta
 	for index in range(stars.size()):
 		var star := stars[index]
-		star.position.y = 1.5 + sin(age * 1.8 + index) * 0.18
+		star.position.y = terrain_height(Vector2(star.position.x, star.position.z)) + 1.5 + sin(age * 1.8 + index) * 0.18
 		star.rotation.y += delta * 0.8
 	for index in range(firefly_origins.size()):
 		var origin := firefly_origins[index]
@@ -351,7 +447,7 @@ func _process(delta: float) -> void:
 func mesh_node(mesh: Mesh, point: Vector3, surface: Material) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.mesh = mesh
-	node.position = point
+	node.position = point + Vector3.UP * terrain_height(Vector2(point.x, point.z))
 	node.material_override = surface
 	add_child(node)
 	return node
@@ -396,7 +492,7 @@ func sphere(point: Vector3, size: Vector3, surface: Material) -> MeshInstance3D:
 
 func collider(point: Vector3, shape: Shape3D) -> void:
 	var body := StaticBody3D.new()
-	body.position = point
+	body.position = point + Vector3.UP * terrain_height(Vector2(point.x, point.z))
 	add_child(body)
 	var collision := CollisionShape3D.new()
 	collision.shape = shape

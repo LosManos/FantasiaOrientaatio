@@ -29,6 +29,18 @@ func _run() -> void:
 	check(game.world.stars.size() == 5, "five stars generated")
 	check(game.collected.count(true) == 0, "nothing collected initially")
 	check(InputMap.has_action("map") and InputMap.has_action("interact"), "inputs registered")
+	check(game.world.get_node("Terrain").get_child_count() > 0, "terrain has mesh collision")
+	check(WorldData.terrain_height(Vector2(-42, -44)) > 10.0, "tower sits on a mapped hill")
+	check(is_zero_approx(WorldData.terrain_height(WorldData.CAMP)), "camp stays level")
+	check(is_zero_approx(WorldData.terrain_height(WorldData.LAKE)), "lake basin stays level")
+	check(game.paper_map.contours.size() >= 5, "map contains multiple elevation contours")
+	for contour in game.paper_map.contours:
+		var consistent := true
+		for point in contour.segments:
+			if absf(WorldData.terrain_height(point) - contour.elevation) > 0.001:
+				consistent = false
+				break
+		check(consistent, "contour %d matches terrain elevation" % contour.elevation)
 
 	game.start_game()
 	await physics_frame
@@ -60,7 +72,7 @@ func _run() -> void:
 
 	for index in range(game.world.stars.size()):
 		var star: Node3D = game.world.stars[index]
-		game.player.position = Vector3(star.position.x, 0.1, star.position.z + 2.1)
+		game.player.position = WorldData.terrain_point(Vector2(star.position.x, star.position.z + 2.1), 0.1)
 		game.player.velocity = Vector3.ZERO
 		await physics_frame
 		await physics_frame
@@ -145,6 +157,20 @@ func exercise_movement(game: Node3D) -> void:
 		await physics_frame
 	check(player.stamina > low_stamina, "resting restores breath")
 
+	player.position = WorldData.terrain_point(Vector2(0, 36), 0.1)
+	player.velocity = Vector3.ZERO
+	for frame in range(8):
+		await physics_frame
+	var initial_height := player.position.y
+	initial_z = player.position.z
+	Input.action_press("move_forward")
+	for frame in range(60):
+		await physics_frame
+	Input.action_release("move_forward")
+	check(initial_z - player.position.z > 3.5, "player can walk uphill along the trail")
+	check(player.position.y > initial_height + 0.2, "walking uphill gains elevation")
+	check(absf(player.position.y - WorldData.terrain_height(Vector2(player.position.x, player.position.z))) < 0.15, "player follows the mapped terrain surface")
+
 	player.position = Vector3(WorldData.LAKE.x, 0.1, WorldData.LAKE.y + WorldData.LAKE_RADIUS + 2)
 	player.velocity = Vector3.ZERO
 	Input.action_press("move_forward")
@@ -153,7 +179,7 @@ func exercise_movement(game: Node3D) -> void:
 	Input.action_release("move_forward")
 	var lake_distance := Vector2(player.position.x, player.position.z).distance_to(WorldData.LAKE)
 	check(lake_distance >= WorldData.LAKE_RADIUS - 0.3, "lake collision prevents walking into water")
-	player.position = Vector3(0, 0.1, -80)
+	player.position = WorldData.terrain_point(Vector2(0, -80), 0.1)
 	player.velocity = Vector3.ZERO
 	Input.action_press("move_forward")
 	for frame in range(55):

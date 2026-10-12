@@ -39,6 +39,12 @@ paper map. Each grid square represents 20 metres. The lake is too deep to
 cross, so walk around it. All five stars can be collected in any order.
 Collected controls are checked off on your map.
 
+Brown contour lines show the same hills, ridges, and lake basin that you walk
+over in the forest. Thin lines mark every 2 metres of elevation; heavier,
+labelled index contours mark every 10 metres. Closely spaced lines indicate
+steeper slopes, and closed loops reveal hilltops. Trails follow the terrain,
+while the camp and control clearings provide level ground.
+
 Movement and the exploration timer pause while the map or a menu is open.
 Switching away from the game also pauses movement. The final screen shows
 your exploring time and distance travelled; replay resets the adventure.
@@ -67,7 +73,8 @@ godot --headless --path . --editor --import
 godot --headless --audio-driver Dummy --path . --script tests/game_test.gd
 ```
 
-The gameplay tests exercise movement, sprinting, stamina recovery, water and
+The gameplay tests exercise contour-to-terrain agreement, uphill movement,
+sprinting, stamina recovery, water and
 boundary collision, compass bearings, map pausing, gathering all five stars,
 the return-to-camp victory, and replay.
 
