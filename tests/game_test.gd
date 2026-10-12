@@ -27,6 +27,10 @@ func _run() -> void:
 	check(game.state == game.State.MENU, "starts at title")
 	check(not game.player.active, "movement disabled at title")
 	check(game.world.stars.size() == 5, "five stars generated")
+	check(not game.world.paths_enabled and not game.paper_map.paths_enabled, "paths disabled by default in forest and map")
+	check(not game.world.has_node("Trails"), "path-free forest has no trail mesh")
+	check(not game.world.is_clear(Vector2(0, 40)), "disabled paths do not reserve empty forest corridors")
+	check(game.world.is_clear(WorldData.CAMP), "path-free mode preserves camp clearing")
 	check(game.collected.count(true) == 0, "nothing collected initially")
 	check(InputMap.has_action("map") and InputMap.has_action("interact"), "inputs registered")
 	check(game.world.get_node("Terrain").get_child_count() > 0, "terrain has mesh collision")
@@ -42,7 +46,10 @@ func _run() -> void:
 				break
 		check(consistent, "contour %d matches terrain elevation" % contour.elevation)
 
+	game.paths_enabled = true
 	game.start_game()
+	check(game.world.has_node("Trails") and game.paper_map.paths_enabled, "optional paths enabled in forest and map")
+	check(game.world.is_clear(Vector2(0, 40)), "enabled paths reserve walkable corridors")
 	await physics_frame
 	check(game.state == game.State.PLAYING and game.player.active, "starting enables play")
 	check(game.at_camp(), "spawn is at mapped camp")
@@ -97,7 +104,9 @@ func _run() -> void:
 	check(not game.player.active and game.win_overlay.visible, "victory releases controls and shows summary")
 	check(game.win_summary.text.contains("5 / 5"), "victory summary reports all stars")
 
+	game.paths_enabled = false
 	game.start_game()
+	check(not game.world.has_node("Trails") and not game.paper_map.paths_enabled, "replay can disable paths in forest and map")
 	check(game.collected.count(true) == 0, "replay clears collected controls")
 	check(game.elapsed == 0 and game.steps == 0, "replay resets statistics")
 	for star in game.world.stars:

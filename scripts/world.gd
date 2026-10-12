@@ -10,7 +10,7 @@ const CONTOUR_INTERVAL := 2.0
 const INDEX_INTERVAL := 10.0
 const CONTROLS := [
 	{"name": "Whispering Stones", "position": Vector2(-43, -1), "clue": "A circle of stones listens to the western wind."},
-	{"name": "The Broken Watchtower", "position": Vector2(-42, -44), "clue": "Follow the northwestern trail to the old tower."},
+	{"name": "The Broken Watchtower", "position": Vector2(-42, -44), "clue": "An old tower stands on the northwestern hill."},
 	{"name": "The Elder Tree", "position": Vector2(37, -44), "clue": "In the northeast, a golden tree remembers the stars."},
 	{"name": "Giant Mushroom Grove", "position": Vector2(40, 39), "clue": "Southeast of the lake, violet caps shelter a star."},
 	{"name": "The Forgotten Arch", "position": Vector2(-35, 36), "clue": "A doorway without walls waits in the southwest."},
@@ -26,6 +26,8 @@ const PATHS := [
 	[Vector2(0, 61), Vector2(-22, 54), Vector2(-35, 36)],
 	[Vector2(-35, 36), Vector2(-48, 20), Vector2(-43, -1)],
 ]
+
+@export var paths_enabled := false
 
 var rng := RandomNumberGenerator.new()
 var stars: Array[Node3D] = []
@@ -108,7 +110,9 @@ func _ready() -> void:
 	star_material = material(Color("#ffe8a1"), Color("#ffc957"))
 	_make_environment()
 	_make_ground()
-	_make_paths()
+	if paths_enabled:
+		_make_paths()
+	_make_clearings()
 	_make_forest()
 	_make_landmarks()
 	_make_stars()
@@ -222,10 +226,14 @@ func _make_paths() -> void:
 					surface.add_vertex(terrain_point(corners[corner], 0.045))
 			cylinder(Vector3(start.x, 0.02, start.y), 1.7, 0.04, path_material, 12)
 	var trails := MeshInstance3D.new()
+	trails.name = "Trails"
 	trails.mesh = surface.commit()
 	trails.material_override = path_material
 	add_child(trails)
-	cylinder(Vector3(CAMP.x, 0.03, CAMP.y), 7.0, 0.06, path_material, 24)
+
+
+func _make_clearings() -> void:
+	cylinder(Vector3(CAMP.x, 0.03, CAMP.y), 7.0, 0.06, material(Color("#8d8560")), 24)
 	for control in CONTROLS:
 		var point: Vector2 = control.position
 		cylinder(Vector3(point.x, 0.035, point.y), 6.5, 0.07, material(Color("#4d6647")), 20)
@@ -237,6 +245,8 @@ func is_clear(point: Vector2, padding: float = 0.0) -> bool:
 	for control in CONTROLS:
 		if point.distance_to(control.position) < 8.0 + padding:
 			return true
+	if not paths_enabled:
+		return false
 	for path in PATHS:
 		for index in range(path.size() - 1):
 			var closest := Geometry2D.get_closest_point_to_segment(point, path[index], path[index + 1])
