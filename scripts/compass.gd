@@ -1,7 +1,6 @@
 extends Control
 
 const INK := Color("#394d46")
-const PAPER := Color("#eddfba")
 const RED := Color("#bd5346")
 const GOLD := Color("#d1ad65")
 const TICK := Color("#53665b")
@@ -59,30 +58,36 @@ func _draw() -> void:
 		direction_tip + Vector2(5, 11),
 	]), GOLD)
 	draw_line(Vector2(-plate_size.x * 0.34, dial_center.y - radius * 0.83), Vector2(plate_size.x * 0.34, dial_center.y - radius * 0.83), INK, 1.2)
-	draw_circle(dial_center, radius + 5, Color(0.10, 0.15, 0.14, 0.82))
-	draw_circle(dial_center, radius, Color(0.88, 0.93, 0.90, 0.25))
-	draw_arc(dial_center, radius, 0, TAU, 64, Color(0.82, 0.92, 0.90, 0.85), 1.5, true)
-	for tick in range(36):
-		var degree := tick * 10.0
+	draw_arc(dial_center, radius + 4, 0, TAU, 64, Color(0.08, 0.12, 0.11, 0.68), 1.2, true)
+	draw_arc(dial_center, radius, 0, TAU, 64, Color(0.82, 0.92, 0.90, 0.55), 1.1, true)
+	for tick in range(72):
+		var degree := tick * 5.0
 		var direction := _direction(rose_angle + degree)
-		var major := int(fposmod(degree, 30.0)) == 0
-		var start := dial_center + direction * (radius - (11.0 if major else 6.0))
-		var finish := dial_center + direction * (radius - 2.0)
-		draw_line(start, finish, TICK, 1.6 if major else 0.8)
-	for mark in [0, 90, 180, 270]:
-		var direction := _direction(rose_angle + mark)
-		var name: String = ["N", "E", "S", "W"][int(mark / 90)]
-		var text_size := font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
-		draw_string(font, dial_center + direction * (radius - 20) - text_size / 2 + Vector2(0, 4), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, RED if name == "N" else INK)
+		var major := tick % 4 == 0
+		var start := dial_center + direction * (radius - (7.0 if major else 3.5))
+		var finish := dial_center + direction * (radius - 1.0)
+		draw_line(start, finish, TICK, 1.2 if major else 0.7)
+	for degree in range(0, 360, 20):
+		var direction := _direction(rose_angle + degree)
+		var text := str(degree)
+		var font_size := 7
+		var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		var text_position := dial_center + direction * (radius - 13) - text_size / 2 + Vector2(0, 2.5)
+		draw_string(font, text_position + Vector2(0.7, 0.7), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.05, 0.08, 0.07, 0.9))
+		draw_string(font, text_position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.96, 0.97, 0.90, 0.96))
 	var orienting_direction := _direction(rose_angle)
-	var orienting_side := Vector2(-orienting_direction.y, orienting_direction.x) * 2.5
-	var orienting_start := dial_center + orienting_direction * (radius * 0.16)
-	var orienting_tip := dial_center + orienting_direction * (radius * 0.54)
-	var orienting_color := Color("#e18367")
-	draw_line(orienting_start - orienting_side, orienting_tip - orienting_side, orienting_color, 1.5)
-	draw_line(orienting_start + orienting_side, orienting_tip + orienting_side, orienting_color, 1.5)
-	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) - orienting_side * 2, orienting_color, 1.5)
-	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) + orienting_side * 2, orienting_color, 1.5)
+	var orienting_side := Vector2(-orienting_direction.y, orienting_direction.x) * 2.8
+	var orienting_start := dial_center + orienting_direction * (radius * 0.14)
+	var orienting_tip := dial_center + orienting_direction * (radius * 0.58)
+	var orienting_color := Color("#f5d35e")
+	draw_line(orienting_start - orienting_side, orienting_tip - orienting_side, Color(0.04, 0.07, 0.06, 0.9), 5.4)
+	draw_line(orienting_start + orienting_side, orienting_tip + orienting_side, Color(0.04, 0.07, 0.06, 0.9), 5.4)
+	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) - orienting_side * 2, Color(0.04, 0.07, 0.06, 0.9), 5.4)
+	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) + orienting_side * 2, Color(0.04, 0.07, 0.06, 0.9), 5.4)
+	draw_line(orienting_start - orienting_side, orienting_tip - orienting_side, orienting_color, 3.0)
+	draw_line(orienting_start + orienting_side, orienting_tip + orienting_side, orienting_color, 3.0)
+	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) - orienting_side * 2, orienting_color, 3.0)
+	draw_line(orienting_tip, orienting_tip - orienting_direction * (radius * 0.14) + orienting_side * 2, orienting_color, 3.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var screen_dial_center := center + dial_center.rotated(deg_to_rad(case_angle))
 	var needle_direction := _direction(needle_angle)
