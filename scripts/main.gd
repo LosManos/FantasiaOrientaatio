@@ -29,6 +29,7 @@ var compass: CompassScript
 var handheld_compass: CompassScript
 var map_compass: CompassScript
 var map_compass_toggle: CheckBox
+var map_compass_help: Label
 var handheld_enabled := false
 var paper_map: MapScript
 var control_list: VBoxContainer
@@ -431,9 +432,8 @@ func _build_map(root: Control) -> void:
 	paper_map.add_child(map_compass)
 	var column := VBoxContainer.new()
 	column.custom_minimum_size = Vector2(300, 0)
-	column.add_theme_constant_override("separation", 14)
+	column.add_theme_constant_override("separation", 8)
 	row.add_child(column)
-	column.add_child(label("YOUR FIELD NOTES", 13, GOLD))
 	column.add_child(label("The star trail", 28))
 	var advice := label("Orient the map with north on your compass. Match trails, water, and landmarks to what you see.", 14, MUTED)
 	advice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -443,11 +443,21 @@ func _build_map(root: Control) -> void:
 	map_compass_toggle.button_pressed = handheld_enabled
 	map_compass_toggle.toggled.connect(set_handheld_compass_enabled)
 	column.add_child(map_compass_toggle)
-	var compass_help := label("The clear baseplate has a ruler and direction-of-travel arrow. Drag to move; Shift-drag or use the wheel to turn it. Right-drag the dial so its orienting arrow points north.", 12, MUTED)
-	compass_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(compass_help)
+	var compass_description := label("The clear baseplate has a ruler and direction-of-travel arrow.", 12, MUTED)
+	compass_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(compass_description)
+	map_compass_help = label("Drag to move; Shift-drag or use the wheel to turn it. Right-drag the dial so its orienting arrow points north.", 12, MUTED)
+	map_compass_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var instructions_border := panel_style(Color.TRANSPARENT, 4, 6)
+	instructions_border.set_border_width_all(1)
+	instructions_border.border_color = Color.TRANSPARENT
+	map_compass_help.add_theme_stylebox_override("normal", instructions_border)
+	column.add_child(map_compass_help)
+	map_compass.visibility_changed.connect(func() -> void:
+		map_compass_help.add_theme_color_override("font_color", GOLD if map_compass.visible else MUTED)
+		instructions_border.border_color = GOLD if map_compass.visible else Color.TRANSPARENT)
 	control_list = VBoxContainer.new()
-	control_list.add_theme_constant_override("separation", 16)
+	control_list.add_theme_constant_override("separation", 8)
 	column.add_child(control_list)
 	var space := Control.new()
 	space.size_flags_vertical = Control.SIZE_EXPAND_FILL

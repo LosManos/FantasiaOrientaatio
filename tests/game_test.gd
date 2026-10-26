@@ -83,6 +83,16 @@ func _run() -> void:
 	game.open_map()
 	check(game.state == game.State.MAP and not game.player.active, "map suspends movement")
 	check(game.map_compass.visible and not game.handheld_compass.visible, "enabled compass moves to the map view")
+	check(game.map_compass_help.get_theme_color("font_color") == game.GOLD, "visible map compass highlights its instructions")
+	check(game.map_compass_help.text.begins_with("Drag to move;") and not game.map_compass_help.text.contains("The clear baseplate"), "compass usage instructions form a separate paragraph")
+	var instructions_border: StyleBoxFlat = game.map_compass_help.get_theme_stylebox("normal")
+	check(instructions_border.border_width_left > 0 and instructions_border.border_color == game.GOLD, "visible map compass frames the usage paragraph")
+	game.map_compass_toggle.button_pressed = false
+	check(not game.map_compass.visible and game.map_compass_help.get_theme_color("font_color") == game.MUTED, "hiding map compass mutes its instructions")
+	check(instructions_border.border_color == Color.TRANSPARENT, "hidden map compass removes the usage border")
+	game.map_compass_toggle.button_pressed = true
+	check(game.map_compass.visible and game.map_compass_help.get_theme_color("font_color") == game.GOLD, "showing map compass highlights its instructions again")
+	check(instructions_border.border_color == game.GOLD, "showing map compass restores the usage border")
 	var wheel_turn := InputEventMouseButton.new()
 	wheel_turn.button_index = MOUSE_BUTTON_WHEEL_DOWN
 	wheel_turn.pressed = true
