@@ -40,6 +40,7 @@ var win_summary: Label
 var audio: AudioStreamPlayer
 var sound_enabled := true
 var paths_enabled := false
+var direction_enabled := false
 
 
 func _ready() -> void:
@@ -145,6 +146,7 @@ func _set_state(next: State) -> void:
 	pause_overlay.visible = state == State.PAUSED
 	win_overlay.visible = state == State.WON
 	hud.visible = state != State.MENU and state != State.WON
+	compass.visible = direction_enabled
 	prompt_label.visible = state == State.PLAYING
 
 
@@ -399,6 +401,11 @@ func _build_menu(root: Control) -> void:
 	paths_option.button_pressed = paths_enabled
 	paths_option.toggled.connect(func(enabled: bool) -> void: paths_enabled = enabled)
 	column.add_child(paths_option)
+	var direction_option := CheckBox.new()
+	direction_option.text = "Direction indicator"
+	direction_option.button_pressed = direction_enabled
+	direction_option.toggled.connect(func(enabled: bool) -> void: direction_enabled = enabled)
+	column.add_child(direction_option)
 	column.add_child(button("Enter the forest", start_game))
 
 

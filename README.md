@@ -37,8 +37,9 @@ See [LGPLv3+NoEvil](licence.md)
 If you run out of breath, walk or rest briefly before sprinting again.
 
 Your starting position is the camp triangle on the map, facing **north**.
-The compass shows your viewing direction; north is always at the top of the
-paper map. Each grid square represents 20 metres. The lake is too deep to
+The top direction indicator is off by default; enable **Direction indicator**
+on the title screen to show your viewing direction. North is always at the top
+of the paper map. Each grid square represents 20 metres. The lake is too deep to
 cross, so walk around it. All five stars can be collected in any order.
 Collected controls are checked off on your map.
 

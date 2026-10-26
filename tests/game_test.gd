@@ -34,6 +34,7 @@ func _run() -> void:
 	check(game.collected.count(true) == 0, "nothing collected initially")
 	check(InputMap.has_action("map") and InputMap.has_action("interact") and InputMap.has_action("handheld_compass"), "inputs registered")
 	check(not game.handheld_enabled and not game.handheld_compass.visible, "handheld compass is optional and starts hidden")
+	check(not game.direction_enabled and not game.compass.visible, "top direction indicator starts hidden")
 	check(game.world.get_node("Terrain").get_child_count() > 0, "terrain has mesh collision")
 	check(WorldData.terrain_height(Vector2(-42, -44)) > 10.0, "tower sits on a mapped hill")
 	check(is_zero_approx(WorldData.terrain_height(WorldData.CAMP)), "camp stays level")
@@ -47,8 +48,17 @@ func _run() -> void:
 				break
 		check(consistent, "contour %d matches terrain elevation" % contour.elevation)
 
+	var direction_option: CheckBox
+	for option in game.menu_overlay.find_children("*", "CheckBox", true, false):
+		if option.text == "Direction indicator":
+			direction_option = option
+	check(direction_option != null, "menu offers a direction indicator checkbox")
+	if direction_option != null:
+		check(not direction_option.button_pressed, "direction checkbox defaults to unchecked")
+		direction_option.button_pressed = true
 	game.paths_enabled = true
 	game.start_game()
+	check(game.direction_enabled and game.compass.visible, "menu selection enables the top direction indicator")
 	check(game.world.has_node("Trails") and game.paper_map.paths_enabled, "optional paths enabled in forest and map")
 	check(game.world.is_clear(Vector2(0, 40)), "enabled paths reserve walkable corridors")
 	await physics_frame
@@ -138,7 +148,10 @@ func _run() -> void:
 	check(game.win_summary.text.contains("5 / 5"), "victory summary reports all stars")
 
 	game.paths_enabled = false
+	if direction_option != null:
+		direction_option.button_pressed = false
 	game.start_game()
+	check(not game.direction_enabled and not game.compass.visible, "replay can disable the top direction indicator")
 	check(not game.world.has_node("Trails") and not game.paper_map.paths_enabled, "replay can disable paths in forest and map")
 	check(game.collected.count(true) == 0, "replay clears collected controls")
 	check(game.elapsed == 0 and game.steps == 0, "replay resets statistics")
