@@ -1,0 +1,79 @@
+name: Build and Deploy Web Game
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Godot and Web export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          engine="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --retry 3 "$release/$engine.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          mv "$RUNNER_TEMP/godot/$engine" "$RUNNER_TEMP/godot/godot"
+          chmod +x "$RUNNER_TEMP/godot/godot"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+          templates="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$templates"
+          curl --fail --location --retry 3 "$release/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -j -q "$RUNNER_TEMP/templates.tpz" \
+            templates/web_nothreads_debug.zip \
+            templates/web_nothreads_release.zip -d "$templates"
+
+      - name: Import project
+        run: godot --headless --path . --editor --import
+
+      - name: Run gameplay tests
+        run: godot --headless --audio-driver Dummy --path . --script tests/game_test.gd
+
+      - name: Export Web release
+        shell: bash
+        run: |
+          mkdir -p web
+          godot --headless --path . --export-release Web web/index.html
+          test -s web/index.html
+          test -s web/index.js
+          test -s web/index.wasm
+          test -s web/index.pck
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
